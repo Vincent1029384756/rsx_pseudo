@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import APF_func as af
 
 class APF():
 
@@ -51,7 +52,10 @@ class APF():
         return F_att
     
     def calc_rho(self):
-        rho = 
+        #rho is the distance from the point to the boundary
+        rho, _ = af.shortest_dist(self.cur_pos, self.obstacles)
+
+        return rho
     
     def cal_F_rep(self):
         #calculate repulsive force
