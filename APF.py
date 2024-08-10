@@ -19,12 +19,14 @@ class APF():
         '''
         self.zeta = 1.0
         self.time_step = 0.1 #sec
-        self.d = 1.0
+        self.d = 1.0                      #min distance for F_att
         self.v = np.array([0.0, 0.0, 0.0])
-        self.k = 0
+        self.k = 1.0
         self.cur_pos = start
         self.goal = goal
         self.obstacles = obstacles
+        self.eta = 1.0                    #F_rep scalar
+        self.rho0 = 5.0                   #min rho for F_rep
 
 
     def change_zeta(self, zeta):
@@ -36,12 +38,19 @@ class APF():
     def change_d(self, d):
         self.d = d
     
-    def move(self):
-        self.cur_pos = self.cur_pos + self.v*self.time_step
+    def change_eta(self, eta):
+        self.eta = eta
+
+    def calc_dist(self):
+        #calculate current distance from goal
+
+        distance = np.linalg.norm(self.cur_pos - self.goal)
+
+        return distance
     
     def calc_F_att(self):
         #calculate attractive force
-        distance = np.linalg.norm(self.cur_pos, self.goal)
+        distance = self.calc_dist()
 
         if distance <= self.d:
             F_att = -self.zeta(self.cur_pos - self.goal)
@@ -53,15 +62,35 @@ class APF():
     
     def calc_rho(self):
         #rho is the distance from the point to the boundary
-        rho, _ = af.shortest_dist(self.cur_pos, self.obstacles)
+        rho, _ = af.shortest_vector(self.cur_pos, self.obstacles)
 
         return rho
     
-    def cal_F_rep(self):
+    def calc_F_rep(self):
         #calculate repulsive force
         distance = np.linalg.norm(self.cur_pos, self.goal)
+        rho = self.calc_rho()
 
-        if distance >= self.d:
+        if np.linalg.norm(rho) >= np.linalg.norm(self.rho0):
             F_rep = 0
 
-        elif distance <= self.d:
+        elif np.linalg.norm(rho) <= np.linalg.norm(self.rho0):
+            F_rep = self.eta*((1/rho)-(1/self.rho0))*(1/(rho**2))\
+                (rho/np.linalg.norm(rho))
+            
+        return F_rep
+    
+    def calc_Ft(self):
+        #calculate current total force
+
+        Ft = self.calc_F_att + self.calc_F_rep
+
+        return Ft
+    
+    def calc_v(self):
+        #calculate v for the next time step
+
+        self.v = self.k*self.calc_Ft
+    
+    def move(self):
+        self.cur_pos = self.cur_pos + self.v*self.time_step
